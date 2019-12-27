@@ -148,29 +148,37 @@ class Fake2dbMySqlHandler(BaseHandler):
         '''creates and fills the table with simple regis. information
         '''
 
+        unique_columns = dict()
+
+        for idx, column in enumerate(custom):
+            unique_columns[column + "_" + str(idx)] = column
+
         custom_d = faker_options_container()
         sqlst = "CREATE TABLE `custom` (`id` varchar(200) NOT NULL,"
         custom_payload = "INSERT INTO custom (id,"
-        
+
         # form the sql query that will set the db up
-        for c in custom:
-            if custom_d.get(c):
-                sqlst += " `" + c + "` " + custom_d[c] + ","
-                custom_payload += " " + c + ","
-                logger.warning("fake2db found valid custom key provided: %s" % c, extra=extra_information)
+
+        for unique_column in unique_columns:
+            column_name = unique_column
+            column_faker_key = unique_columns[unique_column]
+            if custom_d.get(column_faker_key):
+                sqlst += " `" + column_name + "` " + custom_d[column_faker_key] + ","
+                custom_payload += " " + column_name + ","
+                logger.warning("fake2db found valid custom key provided: %s" % column_faker_key, extra=extra_information)
             else:
                 logger.error("fake2db does not support the custom key you provided.", extra=extra_information)
                 sys.exit(1)
-                
+
         # the indice thing is for trimming the last extra comma
         sqlst += " PRIMARY KEY (`id`)) ENGINE=InnoDB"
         custom_payload = custom_payload[:-1]
         custom_payload += ") VALUES (%s, "
-        
+
         for i in range(0, len(custom)):
             custom_payload += "%s, "
         custom_payload = custom_payload[:-2] + ")"
-        
+
         try:
             cursor.execute(sqlst)
             conn.commit()
@@ -181,9 +189,9 @@ class Fake2dbMySqlHandler(BaseHandler):
         try:
             for i in range(0, number_of_rows):
                 multi_lines.append([rnd_id_generator(self)])
-                for c in custom:
-                    multi_lines[i].append(getattr(self.faker, c)())
-            
+                for unique_column in unique_columns:
+                    multi_lines[i].append(getattr(self.faker, unique_columns[unique_column])())
+
             cursor.executemany(custom_payload, multi_lines)
             conn.commit()
             logger.warning('custom Commits are successful after write job!', extra=extra_information)
